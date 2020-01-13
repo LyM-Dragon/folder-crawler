@@ -53,3 +53,7 @@ dkms.conf
 
 # Visual Studio Code
 .vscode
+
+# Project Specific
+folder-crawler
+/Información
