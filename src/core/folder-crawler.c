@@ -27,13 +27,6 @@ struct quantity {
   int filesQuantity;
 };
 
-void prepend(char* s, const char* t)
-{
-    size_t len = strlen(t);
-    memmove(s + (len - 1), s, strlen(s) + 1);
-    memcpy(s, t, len - 1);
-}
-
 void createDirectory(const char *dirName){
   struct stat st;
   if (stat(dirName, &st) == -1)
@@ -102,15 +95,8 @@ const char *currentPath, const char *separator, int indentation){
   }
   if(directoriosLine != NULL){
     printf("directoriosLine len: %lu", strlen(directoriosLine));
-    sprintf(directoriosLine + strlen(directoriosLine), direcotioriosTemplate, currentDirName,
+    sprintf(directoriosLine + indentation, direcotioriosTemplate, currentDirName,
     quantities.subDirQuantity, quantities.filesQuantity);
-    // if (indentation > 0){
-    //   char *spaces = malloc(indentation + 1);
-    //   if(spaces != NULL){
-        
-    //     prepend(directoriosLine, spaces);
-    //   }
-    // }
     fputs(directoriosLine, directorios);
     fputc('\n', directorios);
     free(directoriosLine);
