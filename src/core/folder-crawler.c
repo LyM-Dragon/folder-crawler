@@ -33,11 +33,15 @@ int isCurrentOrPreviousDir(char *path){
   return 0;
 }
 
-int crawlFolders(DIR *baseDir, const char *parentPath, char *separator){
+int crawlFolders(DIR *baseDir, const char *parentPath, const char *parentFolder,
+ char *separator, FILE *recorrido){
   // printf("CRAWFOLDERS PASO 1\n");
   if(baseDir == NULL){
     return 3;
   }
+
+  fputs(parentFolder, recorrido);
+  fputc('\n', recorrido);
 
   struct dirent *de;  // Pointer for directory entry 
   // printf("CRAWFOLDERS PASO 2\n");
@@ -52,14 +56,17 @@ int crawlFolders(DIR *baseDir, const char *parentPath, char *separator){
     strcat(fullPath , separator);
     strcat(fullPath, de->d_name);
     printf("%s\n", fullPath);
-    // fputs(de->d_name, recorrido);
     DIR *baseDir = opendir(de->d_name); // opendir() returns a pointer of DIR type.  
     if (baseDir != NULL){  // opendir returns NULL if couldn't open directory
       // printf("CRAWFOLDERS PASO 5\n");
-      crawlFolders(baseDir, fullPath, separator);
-      
+      int status = crawlFolders(baseDir, fullPath, de->d_name,separator, recorrido);
+      free(fullPath);
+      fputs(parentFolder, recorrido);
+      fputc('\n', recorrido);
+      if (status != 0){
+        return status;
+      }      
     }
-    free(fullPath);
     // printf("CRAWFOLDERS PASO 6\n");
   }
   // printf("CRAWFOLDERS PASO 7\n");
@@ -78,7 +85,7 @@ int main(int argc, char *argv[]){
       "que se va a trabajar.\n");
     return 1;
   }
-  
+
   printf("PASO 2\n");
   if(argc == 1 ){
     basePath = CURRENT_DIR;
@@ -118,7 +125,7 @@ int main(int argc, char *argv[]){
   FILE *archivos = fopen(archivosPath, "w");
 
   printf("PASO 5\n");
-  int finalStatus = crawlFolders(baseDir, basePath, separator);
+  int finalStatus = crawlFolders(baseDir, basePath, basePath, separator, recorrido);
 
   return finalStatus;
 }
