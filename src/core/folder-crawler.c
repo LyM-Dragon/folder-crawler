@@ -6,11 +6,14 @@
 #include <string.h>
 #include <stdlib.h>
 
-static const int DIRECTORIOS_INDENT_SIZE = 2; 
+
+static const int VALID_ARG_STARTER_LENGTH = 2;
+static const int DIRECTORIOS_INDENT_SIZE = 4;
 static const int MAX_EXTRA_SIZE_ARCHIVOS_LINE = 300;
 static const int MAX_EXTRA_SIZE_DIRECTORIOS_LINE = 300;
 static const int MAX_SIZE_INITIAL_PATH = 1000; 
 static const char DIR_SEPARATOR = '/';
+static const char *VALID_ARG_STARTER = "./";
 static const char *CURRENT_DIR = ".";
 static const char *PREVIOUS_DIR = "..";
 static const char *OUTPUT_DIR_NAME = "Información";
@@ -53,7 +56,7 @@ char *buildPath(char *builtPath, const char *currentPath, const char *separator,
 }
 
 struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char *separator){
-  printf("[countSubDirectoriesAndFiles] PASO 1\n");
+  // printf("[countSubDirectoriesAndFiles] PASO 1\n");
   int countSubDir = 0;
   int countFiles = 0;
   struct quantity subDirAndFiles = {0, 0};
@@ -63,7 +66,7 @@ struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char 
     if(isCurrentOrPreviousDir(de->d_name) == 1){
       continue;
     }
-    printf("[countSubDirectoriesAndFiles] PASO 2\n");
+    // printf("[countSubDirectoriesAndFiles] PASO 2\n");
     struct stat sb;
     char *nextPath = malloc(strlen(currentPath) + strlen(separator) + strlen(de->d_name) +1);
     if(nextPath != NULL){
@@ -94,7 +97,6 @@ const char *currentPath, const char *separator, int indentation){
     memset(directoriosLine, ' ', indentation);
   }
   if(directoriosLine != NULL){
-    printf("directoriosLine len: %lu", strlen(directoriosLine));
     sprintf(directoriosLine + indentation, direcotioriosTemplate, currentDirName,
     quantities.subDirQuantity, quantities.filesQuantity);
     fputs(directoriosLine, directorios);
@@ -140,9 +142,7 @@ void writeLineToArchivos(const char *fileName, const char *dirName, char *path ,
       strcat(permissions, ejecucion);
     }
 
-    printf("Permissions: %s\n",permissions);
     sprintf(finalLine ,lineTemplate, fileName, dirName, permissions);
-    printf("finalLine: %s\n", finalLine);
     fputs(finalLine, archivos);
     fputc('\n', archivos);
     free(finalLine);
@@ -162,9 +162,12 @@ FILE *directorios, FILE *archivos){
     return 3;
   }
 
+  // printf("[crawlFolders] PASO 1\n");
   printf("%s\n", currentFormatedPath);
 
+  // printf("[crawlFolders] PASO 2\n");
   writeLineToRecorrido(currentDirName, recorrido);
+  // printf("[crawlFolders] PASO 3\n");
   writeLineToDirectorios(currentDirName, directorios, currentPath, separator, directoriosIndent);
 
   struct dirent *de;
@@ -201,10 +204,11 @@ FILE *directorios, FILE *archivos){
         return status;
       }
     }else{
-      printf("[crawlFolders] Escribe linea a Archivos.txt\n");
+      // printf("[crawlFolders] Escribe linea a Archivos.txt\n");
       writeLineToArchivos(de->d_name, currentDirName, nextPath, archivos);
     }
   }
+  // printf("[crawlFolders] PASO 4\n");
   closedir(currentDir);
   return 0;
 }
@@ -244,8 +248,25 @@ int main(int argc, char *argv[]){
     return 1;
     }
   } else {
-    basePath = argv[1];
-    baseFormatedPath = argv[1];
+    char * currentPathStarter = malloc(VALID_ARG_STARTER_LENGTH + 1);
+    strncpy(currentPathStarter, argv[1], VALID_ARG_STARTER_LENGTH);
+    // strncpy(&firstChar, argv[1], 1);
+    printf("current path starter %s\n", currentPathStarter);
+    if(strcmp(currentPathStarter, VALID_ARG_STARTER) != 0){
+      printf("arg no empieza con './'\n");
+      char *newBasePath = malloc(strlen(argv[1]) + 1);
+      strcpy(newBasePath, "/");
+      strcat(newBasePath, argv[1]);
+      basePath = newBasePath;
+      // memset(newBasePath, '/', 1);
+    }else{
+      printf("empieza con '/' o '.'\n");
+      basePath = argv[1];
+    }
+
+    printf("basePath: %s\n", basePath);
+    baseFormatedPath = strrchr(argv[1], DIR_SEPARATOR);
+    baseDirName = baseFormatedPath + 1;
   }
   
   printf("PASO 3\n");
@@ -253,8 +274,10 @@ int main(int argc, char *argv[]){
   baseDir = opendir(basePath);
   if (baseDir == NULL){  // opendir returns NULL if couldn't open directory  
     printf(
-      "El directorio base dado como argumento no se pudo abrir, verifique que exista "
-      "y que corresponda a un directorio\n"); 
+      "El directorio base dado como argumento no se pudo abrir, verifique que:\n"
+      "1. Ruta exista\n"
+      "2. Ruta corresponda a un directorio\n"
+      "3. La ruta sea absoluta o respete el formato de ruta relativa './example/hello'\n"); 
     return 2; 
   }
 
