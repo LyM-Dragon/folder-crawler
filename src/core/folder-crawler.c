@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+static const int DIRECTORIOS_INDENT_SIZE = 2; 
+static const int MAX_SIZE_DIRECTORIOS_LINE = 1000; 
 static const int MAX_SIZE_INITIAL_PATH = 1000; 
 static const char DIR_SEPARATOR = '/';
 static const char *CURRENT_DIR = ".";
@@ -17,6 +19,19 @@ static const char *ARCHIVOS_FILE_NAME = "Archivos.txt";
 static const int TOO_MANY_ARGS = 1;
 static const int NOT_A_DIR = 2;
 static const int CRAWL_ERROR = 3;
+static const int MEM_ALLOCATION_ERROR = 4;
+
+struct quantity {
+  int subDirQuantity;
+  int filesQuantity;
+};
+
+void prepend(char* s, const char* t)
+{
+    size_t len = strlen(t);
+    memmove(s + len, s, strlen(s) + 1);
+    memcpy(s, t, len);
+}
 
 void createDirectory(const char *dirName){
   struct stat st;
@@ -43,55 +58,119 @@ char *buildPath(char *builtPath, const char *currentPath, const char *separator,
   // printf("de->d_name: %s\n", de->d_name);
 }
 
-int crawlFolders(DIR *baseDir, const char *currentPath, const char *currentFormatedPath, 
-const char *separator, const char *currentDirName, FILE *recorrido){
-  // printf("CRAWFOLDERS PASO 1\n");
-  if(baseDir == NULL){
-    return 3;
-  }
-
-  //escribe carpeta a archivo Recorrido.txt
-  fputs(currentDirName, recorrido);
-  fputc('\n', recorrido);
-
-  printf("%s\n", currentFormatedPath);
-
+struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char *separator){
+  int countSubDir = 0;
+  int countFiles = 0;
+  struct quantity subDirAndFiles = {0, 0};
   struct dirent *de;
-  // printf("CRAWFOLDERS PASO 2\n");
-  while ((de = readdir(baseDir)) != NULL) {
-    // printf("CRAWFOLDERS PASO 3\n");
+  DIR *dir = opendir(currentPath);
+  while ((de = readdir(dir)) != NULL) {
     if(isCurrentOrPreviousDir(de->d_name) == 1){
       continue;
     }
-    // printf("CRAWFOLDERS PASO 4\n");
+    struct stat sb;
     char *nextPath = malloc(strlen(currentPath) + strlen(separator) + strlen(de->d_name) +1);
+    if(nextPath != NULL){
+      buildPath(nextPath, currentPath, separator, de->d_name);
+      if (stat(nextPath, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        subDirAndFiles.subDirQuantity++;
+      } else if (stat(nextPath, &sb) == 0) {
+        subDirAndFiles.filesQuantity++;
+      }
+      free(nextPath);
+    } else {
+      printf("[countSubDirectoriesAndFiles] Error al tratar de resevar memoria para formar nextPath");
+      break;
+    }
+  }
+  closedir(dir);
+  return subDirAndFiles;
+}
+
+void writeLineToDirectorios(const char *currentDirName, FILE *directorios, 
+const char *currentPath, const char *separator, int indentation){
+  struct quantity quantities = countSubDirectoriesAndFiles(currentPath, separator);
+  char *direcotioriosTemplate = "Directorio %s contiene: %d carpetas y %d archivos";
+  char *directoriosLine = malloc(strlen(direcotioriosTemplate) + MAX_SIZE_DIRECTORIOS_LINE);
+  char *spaces = malloc(indentation + 1);
+  if(directoriosLine != NULL && spaces != NULL){
+    sprintf(directoriosLine, direcotioriosTemplate, currentDirName,
+    quantities.subDirQuantity, quantities.filesQuantity);
+    memset(spaces, ' ', indentation);
+    prepend(directoriosLine, spaces);
+    fputs(directoriosLine, directorios);
+    fputc('\n', directorios);
+    free(directoriosLine);
+  }else{
+    printf("Error al trata de escribir linea a archivo Directorios.txt");
+  }
+}
+
+void writeLineToRecorrido( const char* currentDirName, FILE *recorrido){
+  fputs(currentDirName, recorrido);
+  fputc('\n', recorrido);
+}
+
+int crawlFolders(DIR *currentDir, const char *currentPath, const char *currentFormatedPath, 
+const char *currentDirName, const char *separator, int directoriosIndent, FILE *recorrido, 
+FILE *directorios){
+  printf("CRAWFOLDERS PASO 1\n");
+  if(currentDir == NULL){
+    return 3;
+  }
+
+  printf("%s\n", currentFormatedPath);
+
+  writeLineToRecorrido(currentDirName, recorrido);
+  writeLineToDirectorios(currentDirName, directorios, currentPath, separator, directoriosIndent);
+
+  printf("CRAWFOLDERS PASO 2\n");
+  struct dirent *de;
+  while ((de = readdir(currentDir)) != NULL) {
+    printf("CRAWFOLDERS PASO 3\n");
+    if(isCurrentOrPreviousDir(de->d_name) == 1){
+      continue;
+    }
+    printf("CRAWFOLDERS PASO 4\n");
+    char *nextPath = malloc(strlen(currentPath) + strlen(separator) + strlen(de->d_name) +1);
+    if(nextPath == NULL){
+      printf("[crawlFolders] Error al tratar de resevar memoria para formar nextPath");
+      return 4;
+    }
     buildPath(nextPath, currentPath, separator, de->d_name);
     DIR *newBaseDir = opendir(nextPath);
     
     if (newBaseDir != NULL){
-      // printf("CRAWFOLDERS PASO 5\n");
+      printf("CRAWFOLDERS PASO 5\n");
       char *nextFormatedPath = malloc(strlen(currentFormatedPath) + strlen(separator) + strlen(de->d_name) +1);
+      if(nextFormatedPath == NULL){
+        printf("[crawlFolders] Error al tratar de resevar memoria para formar nextFormatedPath");
+        return 4;
+      }
       buildPath(nextFormatedPath, currentFormatedPath, separator, de->d_name);
-      int status = crawlFolders(newBaseDir, nextPath, nextFormatedPath,separator, de->d_name, recorrido);
+      int status = crawlFolders(newBaseDir, nextPath, nextFormatedPath, de->d_name, separator, 
+      directoriosIndent + DIRECTORIOS_INDENT_SIZE ,recorrido, directorios);
       free(nextPath);
       free(nextFormatedPath);
       printf("%s\n", currentFormatedPath);
 
-      //escribe carpeta a archivo Recorrido.txt
-      fputs(currentDirName, recorrido);
-      fputc('\n', recorrido);
+      writeLineToRecorrido(currentDirName, recorrido);
 
       if (status != 0){
         return status;
       }
     }else{
-      // printf("IS DIR: %d\n", 0);
-      // printf("%s\n", fullPath);
-    }    
+    }
   }
-  // printf("CRAWFOLDERS PASO 7\n");
-  closedir(baseDir);
+  printf("CRAWFOLDERS PASO 7\n");
+  closedir(currentDir);
   return 0;
+}
+
+int curr_crawlFolders(DIR *currentDir, const char *currentPath, const char *currentFormatedPath, 
+const char *currentDirName, FILE *recorrido, FILE *directorios){
+  return crawlFolders(currentDir, currentPath, currentFormatedPath, currentDirName, 
+  &DIR_SEPARATOR, 0,recorrido, directorios);
 }
 
 int main(int argc, char *argv[]){
@@ -145,6 +224,11 @@ int main(int argc, char *argv[]){
   strlen(DIRECTORIOS_FILE_NAME) +1);
   char *archivosPath = malloc(strlen(OUTPUT_DIR_NAME) + strlen(&DIR_SEPARATOR) + 
   strlen(ARCHIVOS_FILE_NAME) +1);
+
+  if(recorridoPath == NULL || directoriosPath == NULL || archivosPath == NULL){
+    return 4;
+  }
+
   strcpy(recorridoPath, OUTPUT_DIR_NAME);
   strncat(recorridoPath, &DIR_SEPARATOR, 1);
   strcat(recorridoPath, RECORRIDO_FILE_NAME);
@@ -159,8 +243,11 @@ int main(int argc, char *argv[]){
   FILE *archivos = fopen(archivosPath, "w");
 
   printf("PASO 5\n");
-  int finalStatus = crawlFolders(baseDir, basePath, baseFormatedPath, &DIR_SEPARATOR, 
-  baseDirName, recorrido);
+  int finalStatus = curr_crawlFolders(baseDir, basePath, baseFormatedPath, baseDirName,
+   recorrido, directorios);
+
+  printf("PASO 6\n");
+  printf("final status: %d\n", finalStatus);
 
   return finalStatus;
 }
