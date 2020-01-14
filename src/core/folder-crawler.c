@@ -6,6 +6,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+// Alumnos:
+// Luis Molina
+// Mariana Encalada
 
 static const int VALID_ARG_STARTER_LENGTH = 2;
 static const int DIRECTORIOS_INDENT_SIZE = 4;
@@ -62,15 +65,11 @@ int isCurrentOrPreviousDir(char *path){
 
 char *buildPath(char *builtPath, const char *currentPath, const char *separator, char *addedToPath){
   strcpy(builtPath, currentPath);
-  // printf("parentPath: %s\n", currentPath);
   strncat(builtPath , separator, 1);
-  // printf("separator: %c\n", *separator);
   strcat(builtPath, addedToPath);
-  // printf("de->d_name: %s\n", de->d_name);
 }
 
 struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char *separator){
-  // printf("[countSubDirectoriesAndFiles] PASO 1\n");
   int countSubDir = 0;
   int countFiles = 0;
   struct quantity subDirAndFiles = {0, 0};
@@ -80,7 +79,6 @@ struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char 
     if(isCurrentOrPreviousDir(de->d_name) == 1){
       continue;
     }
-    // printf("[countSubDirectoriesAndFiles] PASO 2\n");
     struct stat sb;
     char *nextPath = malloc(strlen(currentPath) + strlen(separator) + strlen(de->d_name) +1);
     if(nextPath != NULL){
@@ -102,9 +100,7 @@ struct quantity countSubDirectoriesAndFiles(const char *currentPath, const char 
 
 void writeLineToDirectorios(const char *currentDirName, FILE *directorios, 
 const char *currentPath, const char *separator, int indentation){
-  // printf("[writeLineToDirectorios] PASO 1");
   struct quantity quantities = countSubDirectoriesAndFiles(currentPath, separator);
-  // printf("[writeLineToDirectorios] PASO 2");
   char *direcotioriosTemplate = "Directorio %s contiene: %d carpetas y %d archivos";
   char *directoriosLine = malloc(indentation + strlen(direcotioriosTemplate) + MAX_EXTRA_SIZE_DIRECTORIOS_LINE);
   if(indentation > 0){
@@ -117,7 +113,7 @@ const char *currentPath, const char *separator, int indentation){
     fputc('\n', directorios);
     free(directoriosLine);
   }else{
-    printf("Error al trata de escribir linea a archivo Directorios.txt\n");
+    printf("[writeLineToDirectorios] Error al trata de escribir linea a archivo Directorios.txt\n");
   }
 }
 
@@ -182,13 +178,9 @@ int directoriosIndent, struct files file){
   strcpy(currentPath, baseValues.basePath);
   strcpy(currentDirName, baseValues.baseDirName);
 
-  // printf("[crawlFolders] PASO 1\n");
   printf("%s\n", currentFormatedPath);
 
-  // printf("[crawlFolders] PASO 2\n");
-  // printf("[crawlFolders] baseValues.baseDirName : %s\n", baseValues.baseDirName);
   writeLineToRecorrido(currentDirName, file.recorrido);
-  // printf("[crawlFolders] PASO 3\n");
   writeLineToDirectorios(currentDirName, file.directorios, currentPath, 
   separator, directoriosIndent);
 
@@ -228,7 +220,6 @@ int directoriosIndent, struct files file){
         return status;
       }
     }else{
-      // printf("[crawlFolders] Escribe linea a Archivos.txt\n");
       writeLineToArchivos(de->d_name, currentDirName, nextPath, file.archivos);
     }
     free(nextPath);
@@ -236,7 +227,6 @@ int directoriosIndent, struct files file){
   free(currentFormatedPath);
   free(currentPath);
   free(currentDirName);
-  // printf("[crawlFolders] PASO 4\n");
   closedir(currentDir);
   return SUCCESS;
 }
@@ -252,13 +242,11 @@ int validateArgLength(int argc){
   return SUCCESS;
 }
 
-int initWithCurrentPath(struct base_values *values){
+int initWithCurrentPath (struct base_values *values){
     char tmpBasePath[MAX_SIZE_INITIAL_PATH];
     if (getcwd(tmpBasePath, MAX_SIZE_INITIAL_PATH) != NULL) {
-      printf("Current working dir: %s\n", tmpBasePath);
       values->baseFormatedPath = strrchr(tmpBasePath, DIR_SEPARATOR);
       values->baseDirName = values->baseFormatedPath + 1;
-      printf("Base dir name: %s\n", values->baseDirName);
       values->basePath = CURRENT_DIR;
     } else {
       perror("getcwd() error");
@@ -271,13 +259,11 @@ int initWithCurrentPath(struct base_values *values){
 int setBaseValues(int argc, char* arg, struct base_values *values){
   int status = SUCCESS;
   if(argc == 1 ){
-    printf("[setBaseValues] PASO 1\n");
     status = initWithCurrentPath(values);
   } else if((strlen(arg) == 1 && strcmp(arg, CURRENT_DIR) == 0) || 
   (strlen(arg) == 2 && strcmp(arg, VALID_ARG_STARTER) == 0)){
     status = initWithCurrentPath(values);
   } else{
-    printf("[setBaseValues] PASO 2\n");
     char * currentPathStarter = malloc(VALID_ARG_STARTER_LENGTH + 1);
     char * firstCharPath = malloc(2);
     char delimiter[2] = "\0";
@@ -286,14 +272,10 @@ int setBaseValues(int argc, char* arg, struct base_values *values){
       printf("[setBaseValues] Error al tratar de resevar memoria para formar inicio de path\n");
       return MEM_ALLOCATION_ERROR;
     }
-    printf("[setBaseValues] PASO 3\n");
     strncpy(currentPathStarter, arg, VALID_ARG_STARTER_LENGTH);
     strncpy(firstCharPath, arg, 1);
 
-    printf("[setBaseValues] firstCharPath : %s\n", firstCharPath);
-    printf("[setBaseValues] current path starter %s\n", currentPathStarter);
     if(strcmp(currentPathStarter, VALID_ARG_STARTER) != 0 && strcmp(firstCharPath, delimiter) != 0){
-      printf("[setBaseValues] arg no empieza con './' ni con '/'\n");
       // Se agrega caracter '/' al inicio de argumento dado  
       char *newBasePath = malloc(strlen(arg) + 1);
       if(newBasePath == NULL){
@@ -304,16 +286,12 @@ int setBaseValues(int argc, char* arg, struct base_values *values){
       strcat(newBasePath, arg);
       values->basePath = newBasePath;
     }else{
-      // es path absoluto?
-      printf("[setBaseValues] empieza con './'\n");
+      // arg empieza con './' o '/''
       values->basePath = arg;
     }
 
-    printf("[setBaseValues] basePath: %s\n", values->basePath);
     values->baseFormatedPath = strrchr(values->basePath, DIR_SEPARATOR);
     values->baseDirName = values->baseFormatedPath + 1;
-    printf("[setBaseValues] values->baseFormatedPath : %s\n", values->baseFormatedPath);
-    printf("[setBaseValues] values->baseDirName: %s\n", values->baseDirName);
     free(currentPathStarter);
   }
 
@@ -347,7 +325,7 @@ int createDirectoryAndFiles(struct files *file){
   strlen(ARCHIVOS_FILE_NAME) +1);
 
   if(recorridoPath == NULL || directoriosPath == NULL || archivosPath == NULL){
-    printf("[setBaseValues] Error al tratar de resevar memoria para formar path de archivos\n");
+    printf("[createDirectoryAndFiles] Error al tratar de resevar memoria para formar path de archivos\n");
     return MEM_ALLOCATION_ERROR;
   }
 
@@ -374,7 +352,7 @@ int createDirectoryAndFiles(struct files *file){
   int firstLineSize = 12 + 12 + strlen(FILES_FIRST_LINE_TEMPLATE) +1; 
   char *firstLine = malloc(firstLineSize);
   if(firstLine == NULL){
-    printf("[setBaseValues] Error al tratar de resevar memoria para formar firstLine\n");
+    printf("[createDirectoryAndFiles] Error al tratar de resevar memoria para formar firstLine\n");
     return MEM_ALLOCATION_ERROR;
   }
   sprintf(firstLine, FILES_FIRST_LINE_TEMPLATE, userEffectiveId, processId);
@@ -393,45 +371,31 @@ int curr_crawlFolders(DIR *currentDir, const struct base_values baseValues, stru
 
 int main(int argc, char *argv[]){
   int finalStatus = 0;
-  char const *basePath;
-  char const *baseFormatedPath;
-  char const *baseDirName;
 
-  printf("PASO 1\n");
   finalStatus = validateArgLength(argc);
   if(finalStatus != 0){
     return finalStatus;
   }
 
-  printf("PASO 2\n");
   struct base_values baseValues;
   finalStatus = setBaseValues(argc, argv[1], &baseValues);
   if(finalStatus != 0){
     return finalStatus;
   }
   
-  printf("PASO 3\n");
-  printf("baseValues.basePath = %s\n", baseValues.basePath);
-  printf("baseValues.baseDirName = %s\n", baseValues.baseDirName);
-  printf("baseValues.baseFormatedPath = %s\n", baseValues.baseFormatedPath);
   DIR *baseDir = opendir(baseValues.basePath);
   finalStatus = validateDirectory(baseDir);
   if(finalStatus != 0){
     return finalStatus;
   }
 
-  printf("PASO 4\n");
   struct files file = {NULL, NULL, NULL};
   finalStatus = createDirectoryAndFiles(&file);
   if(finalStatus != 0){
     return finalStatus;
   }
 
-  printf("PASO 5\n");
   finalStatus = curr_crawlFolders(baseDir, baseValues, file);
-
-  printf("PASO 6\n");
-  printf("final status: %d\n", finalStatus);
 
   return finalStatus;
 }
