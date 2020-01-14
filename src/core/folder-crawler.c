@@ -9,6 +9,9 @@
 // Alumnos:
 // Luis Molina
 // Mariana Encalada
+//
+// Testeado en SO Linux Ubuntu 19.04
+// Compilado con GNU Compiler Collection 8.3.0 
 
 static const int VALID_ARG_STARTER_LENGTH = 2;
 static const int DIRECTORIOS_INDENT_SIZE = 4;
