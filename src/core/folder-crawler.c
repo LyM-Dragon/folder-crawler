@@ -35,8 +35,8 @@ struct files {
   FILE *archivos;
 };
 struct base_values {
-  char *baseFormatedPath;
-  char *baseDirName;
+  const char *baseFormatedPath;
+  const char *baseDirName;
   const char *basePath;
 };
 struct quantity {
@@ -169,20 +169,27 @@ void writeLineToRecorrido( const char* currentDirName, FILE *recorrido){
   fputc('\n', recorrido);
 }
 
-int crawlFolders(DIR *currentDir, struct base_values baseValues, const char *separator, 
+int crawlFolders(DIR *currentDir, const struct base_values baseValues, const char *separator, 
 int directoriosIndent, struct files file){
   if(currentDir == NULL){
     return NOT_A_DIR;
   }
 
+  char *currentFormatedPath = malloc(strlen(baseValues.baseFormatedPath) + 1);
+  char *currentPath = malloc(strlen(baseValues.basePath) + 1);
+  char *currentDirName = malloc(strlen(baseValues.baseDirName) + 1);
+  strcpy(currentFormatedPath, baseValues.baseFormatedPath);
+  strcpy(currentPath, baseValues.basePath);
+  strcpy(currentDirName, baseValues.baseDirName);
+
   // printf("[crawlFolders] PASO 1\n");
-  printf("%s\n", baseValues.baseFormatedPath);
+  printf("%s\n", currentFormatedPath);
 
   // printf("[crawlFolders] PASO 2\n");
   // printf("[crawlFolders] baseValues.baseDirName : %s\n", baseValues.baseDirName);
-  writeLineToRecorrido(baseValues.baseDirName, file.recorrido);
+  writeLineToRecorrido(currentDirName, file.recorrido);
   // printf("[crawlFolders] PASO 3\n");
-  writeLineToDirectorios(baseValues.baseDirName, file.directorios, baseValues.basePath, 
+  writeLineToDirectorios(currentDirName, file.directorios, currentPath, 
   separator, directoriosIndent);
 
   struct dirent *de;
@@ -191,41 +198,44 @@ int directoriosIndent, struct files file){
       continue;
     }
 
-    char *nextPath = malloc(strlen(baseValues.basePath) + strlen(separator) + strlen(de->d_name) +1);
+    char *nextPath = malloc(strlen(currentPath) + strlen(separator) + strlen(de->d_name) +1);
     if(nextPath == NULL){
       printf("[crawlFolders] Error al tratar de resevar memoria para formar nextPath\n");
       return MEM_ALLOCATION_ERROR;
     }
-    buildPath(nextPath, baseValues.basePath, separator, de->d_name);
+    buildPath(nextPath, currentPath, separator, de->d_name);
     DIR *newBaseDir = opendir(nextPath);
     
     if (newBaseDir != NULL){
       // Entra y se llama recursivamente si el path corresponde a un directorio
-      char *nextFormatedPath = malloc(strlen(baseValues.baseFormatedPath) + strlen(separator) + 
+      char *nextFormatedPath = malloc(strlen(currentFormatedPath) + strlen(separator) + 
       strlen(de->d_name) +1);
       if(nextFormatedPath == NULL){
         printf("[crawlFolders] Error al tratar de resevar memoria para formar nextFormatedPath\n");
         return MEM_ALLOCATION_ERROR;
       }
-      buildPath(nextFormatedPath, baseValues.baseFormatedPath, separator, de->d_name);
+      buildPath(nextFormatedPath, currentFormatedPath, separator, de->d_name);
       struct base_values nextBaseValues = {nextFormatedPath, de->d_name, nextPath};
       int status = crawlFolders(newBaseDir, nextBaseValues, separator, 
       directoriosIndent + DIRECTORIOS_INDENT_SIZE , file);
       free(nextFormatedPath);
 
-      printf("%s\n", baseValues.baseFormatedPath);
+      printf("%s\n", currentFormatedPath);
 
-      writeLineToRecorrido(baseValues.baseDirName, file.recorrido);
+      writeLineToRecorrido(currentDirName, file.recorrido);
 
       if (status != 0){
         return status;
       }
     }else{
       // printf("[crawlFolders] Escribe linea a Archivos.txt\n");
-      writeLineToArchivos(de->d_name, baseValues.baseDirName, nextPath, file.archivos);
+      writeLineToArchivos(de->d_name, currentDirName, nextPath, file.archivos);
     }
     free(nextPath);
   }
+  free(currentFormatedPath);
+  free(currentPath);
+  free(currentDirName);
   // printf("[crawlFolders] PASO 4\n");
   closedir(currentDir);
   return SUCCESS;
@@ -242,10 +252,8 @@ int validateArgLength(int argc){
   return SUCCESS;
 }
 
-int setBaseValues(int argc, char* arg, struct base_values *values){
-  char tmpBasePath[MAX_SIZE_INITIAL_PATH];
-  if(argc == 1 ){
-    printf("[setBaseValues] PASO 1\n");
+int initWithCurrentPath(struct base_values *values){
+    char tmpBasePath[MAX_SIZE_INITIAL_PATH];
     if (getcwd(tmpBasePath, MAX_SIZE_INITIAL_PATH) != NULL) {
       printf("Current working dir: %s\n", tmpBasePath);
       values->baseFormatedPath = strrchr(tmpBasePath, DIR_SEPARATOR);
@@ -256,10 +264,24 @@ int setBaseValues(int argc, char* arg, struct base_values *values){
       perror("getcwd() error");
       return GENERIC_ERROR;
     }
-  } else {
+
+    return SUCCESS;
+}
+
+int setBaseValues(int argc, char* arg, struct base_values *values){
+  int status = SUCCESS;
+  if(argc == 1 ){
+    printf("[setBaseValues] PASO 1\n");
+    status = initWithCurrentPath(values);
+  } else if((strlen(arg) == 1 && strcmp(arg, CURRENT_DIR) == 0) || 
+  (strlen(arg) == 2 && strcmp(arg, VALID_ARG_STARTER) == 0)){
+    status = initWithCurrentPath(values);
+  } else{
     printf("[setBaseValues] PASO 2\n");
     char * currentPathStarter = malloc(VALID_ARG_STARTER_LENGTH + 1);
     char * firstCharPath = malloc(2);
+    char delimiter[2] = "\0";
+    delimiter[0] = DIR_SEPARATOR;
     if(currentPathStarter == NULL || firstCharPath == NULL){
       printf("[setBaseValues] Error al tratar de resevar memoria para formar inicio de path\n");
       return MEM_ALLOCATION_ERROR;
@@ -267,13 +289,12 @@ int setBaseValues(int argc, char* arg, struct base_values *values){
     printf("[setBaseValues] PASO 3\n");
     strncpy(currentPathStarter, arg, VALID_ARG_STARTER_LENGTH);
     strncpy(firstCharPath, arg, 1);
+
     printf("[setBaseValues] firstCharPath : %s\n", firstCharPath);
     printf("[setBaseValues] current path starter %s\n", currentPathStarter);
-    char delimiter[2] = "\0";
-    delimiter[0] = DIR_SEPARATOR;
     if(strcmp(currentPathStarter, VALID_ARG_STARTER) != 0 && strcmp(firstCharPath, delimiter) != 0){
       printf("[setBaseValues] arg no empieza con './' ni con '/'\n");
-      
+      // Se agrega caracter '/' al inicio de argumento dado  
       char *newBasePath = malloc(strlen(arg) + 1);
       if(newBasePath == NULL){
         printf("[setBaseValues] Error al tratar de resevar memoria para formar newBasePath\n");
@@ -296,8 +317,7 @@ int setBaseValues(int argc, char* arg, struct base_values *values){
     free(currentPathStarter);
   }
 
-  printf("[setBaseValues] PASO 5\n");
-  return SUCCESS;
+  return status;
 }
 
 int validateDirectory(DIR *dir){
@@ -367,7 +387,7 @@ int createDirectoryAndFiles(struct files *file){
   free(firstLine);
 }
 
-int curr_crawlFolders(DIR *currentDir, struct base_values baseValues, struct files file){
+int curr_crawlFolders(DIR *currentDir, const struct base_values baseValues, struct files file){
   return crawlFolders(currentDir, baseValues, &DIR_SEPARATOR, 0,file);
 }
 
