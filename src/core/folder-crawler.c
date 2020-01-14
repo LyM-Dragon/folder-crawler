@@ -245,6 +245,7 @@ int validateArgLength(int argc){
 int initWithCurrentPath (struct base_values *values){
     char tmpBasePath[MAX_SIZE_INITIAL_PATH];
     if (getcwd(tmpBasePath, MAX_SIZE_INITIAL_PATH) != NULL) {
+      fputs("\033c", stdout);
       values->baseFormatedPath = strrchr(tmpBasePath, DIR_SEPARATOR);
       values->baseDirName = values->baseFormatedPath + 1;
       values->basePath = CURRENT_DIR;
